@@ -1,0 +1,138 @@
+// Schema Prisma para o projeto Homelab-as-a-Service
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// MODELOS DE AUTENTICAÇÃO (NextAuth v5)
+// ============================================
+
+// Utilizador principal da plataforma
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String?   // Hash da password (bcrypt)
+  role          UserRole  @default(CLIENT)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relações
+  accounts Account[]
+  sessions Session[]
+  orders   Order[]
+
+  @@map("users")
+}
+
+// Papéis de utilizador
+enum UserRole {
+  CLIENT  // Cliente normal
+  ADMIN   // Administrador da plataforma
+}
+
+// NextAuth - Contas de OAuth (Google, GitHub, etc.)
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map("accounts")
+}
+
+// NextAuth - Sessões ativas
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// NextAuth - Tokens de verificação (para OAuth)
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ============================================
+// MODELOS DO NEGÓCIO
+// ============================================
+
+// Catálogo de serviços oferecidos
+model Service {
+  id          String        @id @default(cuid())
+  name        String        // Ex: "Instalação CasaOS"
+  slug        String        @unique // URL-friendly: "instalacao-casaos"
+  description String        // Descrição detalhada
+  shortDesc   String        // Descrição curta para cards
+  price       Decimal       @db.Decimal(10, 2) // Preço em EUR
+  type        ServiceType   // Instalação única ou subscrição
+  active      Boolean       @default(true)
+  features    String[]      // Lista de features incluídas
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relação com pedidos
+  orders Order[]
+
+  @@map("services")
+}
+
+// Tipo de serviço: pagamento único vs recorrente
+enum ServiceType {
+  ONE_TIME   // Instalação única (pagamento único)
+  SUBSCRIPTION // Manutenção mensal (subscrição recorrente)
+}
+
+// Pedidos dos clientes
+model Order {
+  id          String      @id @default(cuid())
+  userId      String
+  serviceId   String
+  status      OrderStatus @default(PENDING)
+  notes       String?     @db.Text // Notas do cliente sobre o que precisa
+  adminNotes  String?     @db.Text // Notas internas (admin)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relações
+  user    User    @relation(fields: [userId], references: [id])
+  service Service @relation(fields: [serviceId], references: [id])
+
+  @@map("orders")
+}
+
+// Estado de um pedido
+enum OrderStatus {
+  PENDING     // Aguarda processamento
+  IN_PROGRESS // Em curso
+  COMPLETED   // Concluído
+  CANCELLED   // Cancelado
+}

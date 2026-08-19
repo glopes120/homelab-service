@@ -19,19 +19,24 @@ export default function LoginPage() {
     const email = formData.get("email") as string
     const password = formData.get("password") as string
 
-    const result = await signIn("credentials", {
-      email,
-      password,
-      redirect: false,
-    })
+    try {
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      })
 
-    setLoading(false)
+      setLoading(false)
 
-    if (result?.error) {
-      setError("Email ou password incorretos.")
-    } else {
-      router.push("/dashboard")
-      router.refresh()
+      if (result?.error) {
+        setError("Credenciais inválidas.")
+      } else {
+        router.push("/dashboard")
+        router.refresh()
+      }
+    } catch {
+      setLoading(false)
+      setError("Erro de ligação. Tente novamente.")
     }
   }
 
@@ -67,6 +72,7 @@ export default function LoginPage() {
               name="email"
               type="email"
               required
+              autoComplete="email"
               className="mt-1 block w-full rounded-lg border border-ink/20 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink/30 focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal transition-colors"
               placeholder="seu@email.com"
             />
@@ -81,6 +87,7 @@ export default function LoginPage() {
               name="password"
               type="password"
               required
+              autoComplete="current-password"
               className="mt-1 block w-full rounded-lg border border-ink/20 bg-white px-3 py-2.5 text-sm text-ink placeholder-ink/30 focus:border-signal focus:outline-none focus:ring-1 focus:ring-signal transition-colors"
               placeholder="••••••••"
             />
